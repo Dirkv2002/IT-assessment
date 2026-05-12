@@ -1,0 +1,341 @@
+from IPython.display import display, HTML
+import ipywidgets as widgets
+
+# ---------------- SETTINGS ----------------
+base_width = 120
+base_height = 50
+gap = 2
+laneX = 140
+
+colors = ["#add8e6", "#90ee90", "#ffa07a", "#f0e68c", "#dda0dd"]
+
+folder_names = [
+    "Projects", "Important Reports", "Images and Photos",
+    "Video Files Collection", "Archives", "Draft Documents",
+    "Invoices 2026", "Presentations for Clients", "Meeting Notes",
+    "Miscellaneous Stuff", "Teams phone", "Dynamic 365",
+    "Exclaimer", "Facilities management", "BEE",
+    "Intranet content", "Multimedia", "Internal audit",
+    "Journals", "Procurement", "VAT report",
+    "Event photos", "Building drawings", "Valuations",
+    "Risk and compliance", "Social housing Act", "Fraud policy",
+    "Basic conditions of Employment Act", "Communicare logo",
+]
+
+folder_divs = "".join([f'<div class="folder">{n}</div>' for n in folder_names])
+
+html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Interactive Folder Workbook</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+body {{
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: #f7fbff;
+    min-height: 120vh;
+    overflow-x: hidden;
+}}
+
+/* ---------------- BACKGROUND LINE ---------------- */
+.background {{
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}}
+
+/* ---------------- INSTRUCTIONS ---------------- */
+#instructions {{
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 720px;
+    background: rgba(0, 174, 239, 0.92);
+    color: white;
+    border-radius: 14px;
+    padding: 16px 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    z-index: 9999;
+    transition: opacity 0s ease, transform 0s ease;
+}}
+
+#instructions h2 {{
+    margin: 0 0 6px 0;
+    font-size: 18px;
+}}
+
+#instructions p {{
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.5;
+}}
+
+/* ---------------- FOLDERS ---------------- */
+.folder {{
+    position:absolute;
+    width:{base_width}px;
+    min-height:{base_height}px;
+    padding: 7px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-family: "Segoe UI", Arial, sans-serif;
+    user-select: none;
+    cursor: grab;
+    background: #ffffff;
+    border: 1px solid #d0d7e2;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    text-align: center;
+}}
+
+.folder:active {{
+    cursor: grabbing;
+}}
+
+.folder[data-level="0"] {{ border-left: 5px solid #2563eb; }}
+.folder[data-level="1"] {{ border-left: 5px solid #16a34a; }}
+.folder[data-level="2"] {{ border-left: 5px solid #f59e0b; }}
+.folder[data-level="3"] {{ border-left: 5px solid #ef4444; }}
+
+/* ---------------- BUTTON ---------------- */
+#submitBtn {{
+    position: fixed;
+    top: 14px;
+    right: 16px;
+    z-index: 9999;
+    padding: 10px 16px;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #00aeef, #007aa6);
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 8px 18px rgba(0,174,239,0.25);
+}}
+
+/* ---------------- TIMESTAMP ---------------- */
+#timestamp {{
+    position: fixed;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: #555;
+    z-index: 99999;
+    pointer-events: none;
+    opacity: 0;
+}}
+</style>
+</head>
+
+<body>
+
+<!-- BACKGROUND LINE -->
+<div class="background">
+<svg width="100%" height="100%" viewBox="0 0 1000 600" preserveAspectRatio="none">
+    <path d="
+        M0,180
+        H650
+        Q720,180 720,260
+        V600
+    "
+    stroke="#00aeef"
+    stroke-width="3"
+    fill="none"
+    opacity="0.08"/>
+</svg>
+</div>
+
+<div id="instructions">
+    <h2>Folder Organisation Exercise</h2>
+    <p>
+        Drag and drop the folders to create a logical structure.<br>
+        Place related items under appropriate parent folders.<br><br>
+        When finished, click <b>Submit & Download PDF</b>.
+    </p>
+</div>
+
+<button id="submitBtn">Submit & Download PDF</button>
+
+<div id="container" style="position:relative; width:1800px; height:900px; z-index:2;">
+    {folder_divs}
+</div>
+
+<div id="timestamp"></div>
+
+<script>
+let folders = document.querySelectorAll('.folder');
+
+const rootX = 20;
+const laneX = {laneX};
+const gap = {gap};
+const colors = {colors};
+
+folders.forEach(f => {{
+    f.childrenList = [];
+    f.parentFolder = null;
+}});
+
+let rootFolders = Array.from(folders);
+
+function getSubtreeHeight(node) {{
+    if (node.childrenList.length === 0) {{
+        return node.offsetHeight + gap;
+    }}
+
+    let h = 0;
+    node.childrenList.forEach(child => {{
+        h += getSubtreeHeight(child);
+    }});
+
+    return Math.max(h, node.offsetHeight + gap);
+}}
+
+function layout(node, level, x, y) {{
+    node.dataset.level = level;
+    node.style.left = x + "px";
+    node.style.top = y + "px";
+    node.style.backgroundColor = colors[level % colors.length];
+
+    let currentY = y;
+
+    node.childrenList.forEach(child => {{
+        let h = getSubtreeHeight(child);
+        layout(child, level + 1, x + laneX, currentY);
+        currentY += h;
+    }});
+}}
+
+function layoutAll() {{
+    let y = 200;
+
+    rootFolders.forEach(root => {{
+        let h = getSubtreeHeight(root);
+        layout(root, 0, rootX, y);
+        y += h;
+    }});
+}}
+
+folders.forEach(folder => {{
+
+    folder.onmousedown = function(e) {{
+        let shiftX = e.clientX - folder.getBoundingClientRect().left;
+        let shiftY = e.clientY - folder.getBoundingClientRect().top;
+
+        function moveAt(x, y) {{
+            folder.style.left = x - shiftX + "px";
+            folder.style.top = y - shiftY + "px";
+        }}
+
+        function onMove(e) {{
+            moveAt(e.pageX, e.pageY);
+        }}
+
+        document.addEventListener('mousemove', onMove);
+
+        document.onmouseup = function(e) {{
+            document.removeEventListener('mousemove', onMove);
+            document.onmouseup = null;
+
+            folders.forEach(f => {{
+                if (f !== folder) {{
+                    let r = f.getBoundingClientRect();
+
+                    if (e.clientX > r.left && e.clientX < r.right &&
+                        e.clientY > r.top && e.clientY < r.bottom) {{
+
+                        if (folder.parentFolder) {{
+                            let arr = folder.parentFolder.childrenList;
+                            arr.splice(arr.indexOf(folder), 1);
+                        }} else {{
+                            rootFolders.splice(rootFolders.indexOf(folder), 1);
+                        }}
+
+                        f.childrenList.push(folder);
+                        folder.parentFolder = f;
+
+                        layoutAll();
+                    }}
+                }}
+            }});
+        }};
+    }};
+
+    folder.ondblclick = function () {{
+        if (folder.parentFolder) {{
+            let p = folder.parentFolder;
+            p.childrenList.splice(p.childrenList.indexOf(folder), 1);
+            folder.parentFolder = null;
+            rootFolders.push(folder);
+            layoutAll();
+        }}
+    }};
+
+    folder.ondragstart = () => false;
+}});
+
+layoutAll();
+
+/* ---------------- SCROLL FADE EFFECT ---------------- */
+window.addEventListener("scroll", function () {{
+    const box = document.getElementById("instructions");
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+
+    if (scrollY < 10) {{
+        box.style.opacity = "1";
+        box.style.transform = "translateX(-50%)";
+    }} else {{
+        box.style.opacity = "0";
+        box.style.transform = "translateX(-50%) scale(0.98)";
+    }}
+}});
+
+/* ---------------- EXPORT TO PDF ---------------- */
+document.getElementById("submitBtn").onclick = function () {{
+
+    const now = new Date();
+
+    const formatted =
+        now.getFullYear() + "-" +
+        String(now.getMonth() + 1).padStart(2, '0') + "-" +
+        String(now.getDate()).padStart(2, '0') + " " +
+        String(now.getHours()).padStart(2, '0') + ":" +
+        String(now.getMinutes()).padStart(2, '0') + ":" +
+        String(now.getSeconds()).padStart(2, '0');
+
+    const stamp = document.getElementById("timestamp");
+    stamp.innerText = "Submitted: " + formatted;
+    stamp.style.opacity = "1";
+
+    document.body.style.height = document.body.scrollHeight + "px";
+
+    const element = document.body;
+
+    const opt = {{
+        margin: 0.3,
+        filename: 'assessment.pdf',
+        image: {{ type: 'jpeg', quality: 0.98 }},
+        html2canvas: {{ scale: 2, scrollY: 0 }},
+        jsPDF: {{ unit: 'in', format: 'a4', orientation: 'landscape' }}
+    }};
+
+    html2pdf().set(opt).from(element).save();
+}};
+</script>
+
+</body>
+</html>
+"""
+
+file_path = r"C:\Users\dvermeulen\Desktop\assessment.html"
+
+with open(file_path, "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+file_path
