@@ -1,0 +1,384 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Interactive Folder Workbook</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+.background {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* smooth fade animation */
+.fade-in-line {
+    animation: lineFade 2s ease-in-out forwards;
+}
+
+@keyframes lineFade {
+    from { opacity: 0;}
+    to { opacity: 1; }
+}
+body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: #99e0fb;
+    overflow-x: hidden;
+}
+.background {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+.background {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.folder {
+    position:absolute;
+    width:120px;
+    min-height:50px;
+    padding: 10px 8px;
+    border-radius: 14px;
+
+    font-weight: 600;
+    font-size: 12.5px;
+    color: #1f2d3d;
+    text-align: center;
+    line-height: 1.3;
+
+    user-select: none;
+    cursor: grab;
+
+    background: linear-gradient(145deg, #ffffff, #f3f6fb);
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow:
+        0 6px 12px rgba(0,0,0,0.10),
+        inset 0 1px 0 rgba(255,255,255,0.8);
+
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+.folder:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        0 10px 18px rgba(0,0,0,0.15),
+        inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+.folder:active {
+    cursor: grabbing;
+    transform: scale(1.02);
+}
+
+.folder[data-level="0"] { border-left: 5px solid #2563eb; }
+.folder[data-level="1"] { border-left: 5px solid #16a34a; }
+.folder[data-level="2"] { border-left: 5px solid #f59e0b; }
+.folder[data-level="3"] { border-left: 5px solid #ef4444; }
+
+.folder:first-child {
+    width: 300px;
+    min-height: 80px;
+    font-size: 14px;
+    font-weight: 800;
+    padding: 35px 4px 20px 20px;
+    text-align: left;
+}
+.locked-root {
+    z-index: 0;
+}
+
+#submitBtn {
+    position: fixed;
+    top: 14px;
+    right: 16px;
+    z-index: 9999;
+    padding: 10px 16px;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    background: #00aeef;
+    color: white;
+    cursor: pointer;
+}
+
+#timestamp {
+    position: fixed;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: #555;
+    z-index: 99999;
+    opacity: 0;
+}
+</style>
+</head>
+
+<body>
+<div class="background">
+<svg width="100%" height="100%" viewBox="0 0 1000 600" preserveAspectRatio="none">
+<path id="flowLine"
+d="M0,180 H650 Q720,180 720,260 V600"
+stroke="#007aa6" stroke-width="3" fill="none" opacity="0.08"/>
+</svg>
+</div>
+
+
+<div id="page1" style="
+position:fixed;
+inset:0;
+background:white;
+z-index:99999;
+display:flex;
+flex-direction:column;
+align-items:center;
+padding:40px 20px;
+overflow-y:auto;
+box-sizing:border-box;
+font-family:Segoe UI;
+">
+
+<div class="background">
+<svg width="100%" height="100%" viewBox="0 0 1000 600" preserveAspectRatio="none">
+<path
+d="M-100,180 
+   H500 
+   Q520,180 520,200 
+   V800"
+stroke="#007aa6"
+stroke-width="3"
+fill="none"
+opacity="0.08"/>
+</svg>
+</div>
+
+<div style="width:720px;background:#00aeefcc;color:white;border-radius:14px;padding:16px 20px;margin-bottom:20px;">
+<h2 style="margin:0;">Instructions</h2>
+<p style="margin:0;font-size:13px;">
+Watch the following video before starting the assessment.<br>
+After the video has been watched, scroll down to start the assessment.
+</p>
+</div>
+
+<video width="750" controls style="
+border-radius:12px;
+position: relative;
+z-index: 20;
+background: white;
+">
+    <source src="file:///C:/Users/dvermeulen/OneDrive%20-%20Communicare/docs/Recruitment/IT%20administrator/ITIB1/demo.mp4" type="video/mp4">
+</video>
+
+<br><br>
+
+<button onclick="
+document.getElementById('page1').style.display='none';
+document.getElementById('page2').style.display='block';
+
+document.getElementById('flowLine').classList.add('fade-in-line');
+
+setTimeout(initFolders, 50);
+"
+style="padding:12px 22px;border:none;border-radius:10px;background:#00aeef;color:white;cursor:pointer;">
+Start
+</button>
+
+</div>
+
+<div id="page2" style="display:none;">
+
+<div class="background">
+<svg width="100%" height="100%" viewBox="0 0 1000 600" preserveAspectRatio="none">
+<path d="M0,180 H650 Q720,180 720,260 V600"
+stroke="#007aa6" stroke-width="3" fill="none" opacity="0"/>
+</svg>
+</div>
+
+<button id="submitBtn">Submit & Download PDF</button>
+
+<div id="container" style="position:relative; width:1800px; min-height:900px; z-index:2;">
+    <div class="folder locked-root">Communicare<br>NPC</div><div class="folder">Human Capital</div><div class="folder">Finance</div><div class="folder">Information Technology</div><div class="folder">Asset Management</div><div class="folder">Marketing & Communications</div><div class="folder">Facilities Management</div><div class="folder">Risk & Compliance</div><div class="folder">Employee Files</div><div class="folder">Intranet Content</div><div class="folder">Laptops</div><div class="folder">Hardware</div><div class="folder">Software</div><div class="folder">Apartments</div><div class="folder">Company Asset Use Policy</div><div class="folder">Entrance Tags</div><div class="folder">Images & Photos</div><div class="folder">Houses</div><div class="folder">Property Inspection Reports</div><div class="folder">Properties</div><div class="folder">HC Policies</div><div class="folder">SARS 2024</div><div class="folder">Company Organogram</div><div class="folder">Finance Policies</div><div class="folder">IT Policies</div><div class="folder">Cybersecurity Policy</div><div class="folder">Invoices 2026</div><div class="folder">Apartment Advertisements</div><div class="folder">Password Policy</div><div class="folder">Asset Management Policies</div><div class="folder">Facilities Policies</div><div class="folder">Miscellaneous Folders</div><div class="folder">Dynamics 365</div><div class="folder">Leave Policy</div><div class="folder">Weekly Company-Wide Updates</div><div class="folder">BEE Policy</div><div class="folder">Public Relations Policy</div><div class="folder">Budget Policy</div><div class="folder">Taxes</div><div class="folder">Multimedia</div><div class="folder">Internal Audit Policy</div><div class="folder">Building Repair Policy</div><div class="folder">Procurement Policy</div><div class="folder">Public Announcement Policy</div><div class="folder">VAT Report</div><div class="folder">Fire Drill Policy</div><div class="folder">Event Photos</div><div class="folder">Valuation Policy</div><div class="folder">Health & Safety Policy</div><div class="folder">Fraud Policy</div><div class="folder">Public Company Folders</div><div class="folder">Communicare Logo</div><div class="folder">Leave Application Link</div>
+</div>
+
+<div id="timestamp"></div>
+
+</div>
+
+<script>
+
+function initFolders() {
+
+let folders = document.querySelectorAll('.folder');
+
+const rootX = 20;
+const laneX = 140+15;
+const gap = 2;
+const colors = ['#add8e6', '#90ee90', '#ffa07a', '#f0e68c', '#dda0dd'];
+
+folders.forEach(f => {
+    f.childrenList = [];
+    f.parentFolder = null;
+});
+
+let rootFolders = Array.from(folders);
+
+function getSubtreeHeight(node) {
+    if (node.childrenList.length === 0) {
+        return node.offsetHeight + gap;
+    }
+
+    let h = 0;
+    node.childrenList.forEach(child => {
+        h += getSubtreeHeight(child);
+    });
+
+    return Math.max(h, node.offsetHeight + gap);
+}
+
+function layout(node, level, x, y) {
+    node.dataset.level = level;
+    node.style.left = x + "px";
+    node.style.top = y + "px";
+    node.style.backgroundColor = colors[level % colors.length];
+
+    let currentY = y;
+
+    node.childrenList.forEach(child => {
+        let h = getSubtreeHeight(child);
+        layout(child, level + 1, x + laneX, currentY);
+        currentY += h;
+    });
+}
+
+function layoutAll() {
+    let y = 200;
+
+    rootFolders.forEach(root => {
+        let h = getSubtreeHeight(root);
+        layout(root, 0, rootX, y);
+        y += h;
+    });
+}
+
+folders.forEach(folder => {
+
+    folder.onmousedown = function(e) {
+    if (folder.classList.contains("locked-root")) return;
+        let shiftX = e.clientX - folder.getBoundingClientRect().left;
+        let shiftY = e.clientY - folder.getBoundingClientRect().top;
+
+        function moveAt(x, y) {
+            folder.style.left = x - shiftX + "px";
+            folder.style.top = y - shiftY + "px";
+        }
+
+        function onMove(e) {
+            moveAt(e.pageX, e.pageY);
+        }
+
+        document.addEventListener('mousemove', onMove);
+
+        document.onmouseup = function(e) {
+            document.removeEventListener('mousemove', onMove);
+            document.onmouseup = null;
+
+            folders.forEach(f => {
+                if (f !== folder) {
+                    let r = f.getBoundingClientRect();
+
+                    if (e.clientX > r.left && e.clientX < r.right &&
+                        e.clientY > r.top && e.clientY < r.bottom) {
+
+                        if (folder.parentFolder) {
+                            let arr = folder.parentFolder.childrenList;
+                            arr.splice(arr.indexOf(folder), 1);
+                        } else {
+                            rootFolders.splice(rootFolders.indexOf(folder), 1);
+                        }
+
+                        f.childrenList.push(folder);
+                        folder.parentFolder = f;
+
+                        layoutAll();
+                    }
+                }
+            });
+        };
+    };
+
+    folder.ondblclick = function () {
+        if (folder.parentFolder) {
+            let p = folder.parentFolder;
+            p.childrenList.splice(p.childrenList.indexOf(folder), 1);
+            folder.parentFolder = null;
+            rootFolders.push(folder);
+            layoutAll();
+        }
+    };
+
+    folder.ondragstart = () => false;
+});
+
+layoutAll();
+
+}
+
+document.getElementById("submitBtn").onclick = function () {
+
+    const now = new Date();
+    document.getElementById("timestamp").innerText =
+        "Submitted: " + now.toLocaleString();
+    document.getElementById("timestamp").style.opacity = "1";
+
+    document.body.style.height = document.body.scrollHeight + "px";
+
+    const container = document.getElementById("container");
+
+    const scaleFactor = 0.6;
+
+    container.style.transform = `scale(${scaleFactor})`;
+    container.style.transformOrigin = "top left";
+
+let maxBottom = 0;
+
+document.querySelectorAll(".folder").forEach(folder => {
+
+    const top = parseFloat(folder.style.top) || 0;
+    const bottom = top + folder.offsetHeight;
+
+    if (bottom > maxBottom) {
+        maxBottom = bottom;
+    }
+});
+
+container.style.height = (maxBottom + 200) + "px";
+    const opt = {
+        margin: 0.3,
+        filename: 'assessment.pdf',
+        image: {type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, scrollY: 0 },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+    };
+    pagebreak: {
+    mode: ['avoid-all']
+}
+
+    html2pdf().set(opt).from(container).save();
+};
+
+</script>
+
+</body>
+</html>
